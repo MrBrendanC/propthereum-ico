@@ -45,10 +45,6 @@ contract Token is Ownable {
     //State values
     uint256 public ethRaised;
     
-    address internal owner;
-    address internal growth;
-    address internal team;
-
     uint256[7] public saleStageStartDates = [1510272000,1511136000,1511222400,1511827200,1512432000,1513036800,1513641600];
 
     //The prices for each stage. The number of tokens a user will receive for 1ETH.
@@ -57,6 +53,8 @@ contract Token is Ownable {
     // This creates an array with all balances
     mapping (address => uint256) private balances;
     mapping (address => mapping (address => uint256)) public allowed;
+
+    address public constant WITHDRAW_ADDRESS = 0x00bcd5e9679b654db151c62b1f5669231f2aa8dcb9;
 
     function Token() public {
 		owner = msg.sender;
@@ -111,7 +109,7 @@ contract Token is Ownable {
     }
 
     function getPreSaleEnd() public constant returns (uint256) {
-        return saleStageStartDates[2];
+        return saleStageStartDates[1];
     }
 
     function getSaleStart() public constant returns (uint256) {
@@ -126,33 +124,37 @@ contract Token is Ownable {
         return (now >= getSaleStart() && now <= getSaleEnd());
     }
 
-    function() payable {
+    function() public payable {
         buyTokens();
     }
 
     function buyTokens() public payable {
         require(msg.value > 0);
         require(inSalePeriod() == true);
+        require(msg.sender != address(0));
 
         uint index = getStage();
         uint256 amount = tokens[index];
         amount = amount.mul(msg.value);
         balances[msg.sender] = balances[msg.sender].add(amount);
+
+        ethRaised = ethRaised.add(msg.value);
     }
 
     function transferEth() public onlyOwner {
-        require(now > getSaleEnd() + 14 days);
-        owner.transfer(this.balance);
+        require(now > getSaleEnd() + 1 days);
+        WITHDRAW_ADDRESS.transfer(this.balance);
     }
 
     function burn() public {
-        require(now > getSaleEnd() + 14 days);
+        require(now > getSaleEnd() + 1 days);
         //Burn outstanding
+        totalSupply = totalSupply.sub(balances[owner]);
         balances[owner] = 0;
     }
 
-    function getStage() internal constant returns (uint256) {
-        for (uint256 i = 1; i < saleStageStartDates.length; i++) {
+    function getStage() public constant returns (uint256) {
+        for (uint8 i = 1; i < saleStageStartDates.length; i++) {
             if (now < saleStageStartDates[i]) {
                 return i - 1;
             }
